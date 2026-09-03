@@ -1,0 +1,16 @@
+<UserControl x:Class="Hawa.App.Popup.BatteryRing"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="72" Height="96">
+    <StackPanel HorizontalAlignment="Center">
+        <Grid Width="56" Height="56">
+            <Ellipse Stroke="#33FFFFFF" StrokeThickness="5" />
+            <Path x:Name="Arc" Stroke="#34C759" StrokeThickness="5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            <TextBlock x:Name="PercentText" Foreground="White" FontSize="13" FontWeight="SemiBold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Text="–" />
+            <TextBlock x:Name="Bolt" Text="⚡" FontSize="11" Foreground="#FFD60A"
+                       HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-2,-2" Visibility="Collapsed" />
+        </Grid>
+        <TextBlock x:Name="LabelText" Foreground="#B3FFFFFF" FontSize="12" HorizontalAlignment="Center" Margin="0,6,0,0" />
+    </StackPanel>
+</UserControl>
