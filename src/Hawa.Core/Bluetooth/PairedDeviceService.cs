@@ -55,6 +55,9 @@ public sealed class PairedDeviceService : IDisposable
         _device.ConnectionStatusChanged -= OnConnectionStatusChanged;
         _device.Dispose();
         _device = null;
+        DeviceId = null;
+        DeviceName = null;
+        Update(false, force: false);
     }
 
     public void Dispose() => Unbind();

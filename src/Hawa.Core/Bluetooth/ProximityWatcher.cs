@@ -16,6 +16,7 @@ public sealed class ProximityWatcher : IDisposable
     private readonly ILogger<ProximityWatcher> _logger;
     private readonly TimeProvider _time;
     private readonly ITimer _restartTimer;
+    private readonly object _gate = new();
     private BluetoothLEAdvertisementWatcher? _watcher;
     private int _failures;
     private bool _wantRunning;
@@ -43,47 +44,61 @@ public sealed class ProximityWatcher : IDisposable
 
     public void Start()
     {
-        _wantRunning = true;
-        _failures = 0;
+        lock (_gate)
+        {
+            _wantRunning = true;
+            _failures = 0;
+        }
         StartCore();
     }
 
     public void Stop()
     {
-        _wantRunning = false;
-        _restartTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        TearDown();
+        lock (_gate)
+        {
+            _wantRunning = false;
+            _restartTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            TearDown();
+        }
     }
 
     private void StartCore()
     {
-        if (!_wantRunning) return;
-        TearDown();
-        try
+        bool shouldFault = false;
+        lock (_gate)
         {
-            var w = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
-            w.AdvertisementFilter.Advertisement.ManufacturerData.Add(
-                new BluetoothLEManufacturerData(AppleCompanyId, new DataWriter().DetachBuffer()));
-            w.Received += OnReceived;
-            w.Stopped += OnStopped;
-            w.Start();
-            _watcher = w;
-            _logger.LogInformation("BLE watcher started");
+            if (!_wantRunning) return;
+            TearDown();
+            try
+            {
+                var w = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
+                w.AdvertisementFilter.Advertisement.ManufacturerData.Add(
+                    new BluetoothLEManufacturerData(AppleCompanyId, new DataWriter().DetachBuffer()));
+                w.Received += OnReceived;
+                w.Stopped += OnStopped;
+                w.Start();
+                _watcher = w;
+                _logger.LogInformation("BLE watcher started");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "BLE watcher failed to start");
+                shouldFault = ScheduleRestart();
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "BLE watcher failed to start");
-            ScheduleRestart();
-        }
+        if (shouldFault) Faulted?.Invoke("Bluetooth scanning keeps failing. Check that Bluetooth is turned on.");
     }
 
     private void TearDown()
     {
-        if (_watcher is null) return;
-        _watcher.Received -= OnReceived;
-        _watcher.Stopped -= OnStopped;
-        try { _watcher.Stop(); } catch { }
-        _watcher = null;
+        lock (_gate)
+        {
+            if (_watcher is null) return;
+            _watcher.Received -= OnReceived;
+            _watcher.Stopped -= OnStopped;
+            try { _watcher.Stop(); } catch { }
+            _watcher = null;
+        }
     }
 
     private void OnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
@@ -92,7 +107,8 @@ public sealed class ProximityWatcher : IDisposable
         {
             if (md.CompanyId != AppleCompanyId) continue;
             var data = new byte[md.Data.Length];
-            DataReader.FromBuffer(md.Data).ReadBytes(data);
+            using var reader = DataReader.FromBuffer(md.Data);
+            reader.ReadBytes(data);
             if (data.Length == 0 || data[0] != ProximityParser.MessageType) continue;
 
             _logger.LogDebug("advert {Address:X12} rssi {Rssi} data {Hex}", args.BluetoothAddress, args.RawSignalStrengthInDBm, Convert.ToHexString(data));
@@ -104,17 +120,25 @@ public sealed class ProximityWatcher : IDisposable
 
     private void OnStopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args)
     {
-        if (!_wantRunning) return;
-        _logger.LogWarning("BLE watcher stopped: {Error}", args.Error);
-        ScheduleRestart();
+        bool shouldFault;
+        lock (_gate)
+        {
+            if (!_wantRunning) return;
+            _logger.LogWarning("BLE watcher stopped: {Error}", args.Error);
+            shouldFault = ScheduleRestart();
+        }
+        if (shouldFault) Faulted?.Invoke("Bluetooth scanning keeps failing. Check that Bluetooth is turned on.");
     }
 
-    private void ScheduleRestart()
+    /// <summary>Must be called while holding <see cref="_gate"/>. Returns true when the fault
+    /// threshold was just reached; the caller raises <see cref="Faulted"/> after leaving the lock.</summary>
+    private bool ScheduleRestart()
     {
         _failures++;
-        if (_failures == MaxFailuresBeforeFault) Faulted?.Invoke("Bluetooth scanning keeps failing. Check that Bluetooth is turned on.");
+        bool shouldFault = _failures == MaxFailuresBeforeFault;
         var delay = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, Math.Min(_failures - 1, 5))));
         _restartTimer.Change(delay, Timeout.InfiniteTimeSpan);
+        return shouldFault;
     }
 
     public void Dispose()
