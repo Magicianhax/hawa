@@ -26,7 +26,15 @@ public partial class PopupCard : Window
         _services = services;
         _hideTimer.Tick += (_, _) => HideCard();
         services.Store.StateChanged += () => Dispatcher.BeginInvoke(Refresh);
-        MouseEnter += (_, _) => _hideTimer.Stop();
+        MouseEnter += (_, _) =>
+        {
+            _hideTimer.Stop();
+            if (!_visible && IsVisible)
+            {
+                _visible = true;
+                BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(150)));
+            }
+        };
         MouseLeave += (_, _) => { if (_visible) _hideTimer.Start(); };
         SourceInitialized += (_, _) =>
         {
