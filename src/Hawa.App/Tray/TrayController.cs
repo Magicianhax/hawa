@@ -15,6 +15,7 @@ public sealed class TrayController : IDisposable
     private readonly Action _onStateChanged;
     private readonly Action<Core.Settings.HawaSettings> _onSettingsChanged;
     private readonly Action<string> _onWatcherFaulted;
+    private readonly Action<Transition> _onTransition;
     private System.Drawing.Icon? _current;
 
     public TrayController(AppServices services, Action showSettings, Action togglePopup, Action showPopupHover)
@@ -62,10 +63,17 @@ public sealed class TrayController : IDisposable
         });
         _onWatcherFaulted = msg => Application.Current?.Dispatcher.BeginInvoke(() =>
             _icon.ShowNotification("Hawa", msg, NotificationIcon.Warning));
+        _onTransition = t =>
+        {
+            if (t is LowBattery lb)
+                Application.Current?.Dispatcher.BeginInvoke(() =>
+                    _icon.ShowNotification("Hawa", $"{lb.Side} AirPod battery is at {lb.Percent}%", NotificationIcon.Info));
+        };
 
         services.Store.StateChanged += _onStateChanged;
         services.SettingsChanged += _onSettingsChanged;
         services.WatcherFaulted += _onWatcherFaulted;
+        services.Store.TransitionOccurred += _onTransition;
 
         Refresh();
     }
@@ -115,6 +123,7 @@ public sealed class TrayController : IDisposable
         _services.Store.StateChanged -= _onStateChanged;
         _services.SettingsChanged -= _onSettingsChanged;
         _services.WatcherFaulted -= _onWatcherFaulted;
+        _services.Store.TransitionOccurred -= _onTransition;
         _icon.Dispose();
         _current?.Dispose();
     }
