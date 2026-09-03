@@ -70,14 +70,18 @@ Apple Continuity proximity pairing message (type `0x07`):
 
 | Offset | Meaning |
 |---|---|
-| 0 | prefix `0x01` |
-| 1-2 | model ID, big endian |
-| 3 | status flags: primary side, in-ear per side, both in case, "flipped" bit |
-| 4 | battery: high nibble one side, low nibble the other, 0-10 steps, `0xF` unknown |
-| 5 | charging flags (bits 4-6) and case battery (low nibble) |
-| 6 | lid open counter and lid state |
-| 7 | colour |
-| 8+ | encrypted payload, ignored in v1 |
+| 0 | message type `0x07` |
+| 1 | message length (`0x19`) |
+| 2 | prefix `0x01` |
+| 3-4 | model ID, big endian (`0x1420` Pro 2 Lightning, `0x2420` Pro 2 USB-C) |
+| 5 | status: high nibble bit `0x2` clear means "flipped"; low nibble bits `0x2` and `0x8` are in-ear flags |
+| 6 | pod batteries as two nibbles, 0-10 in 10 % steps, `0xF` unknown; nibble order depends on flipped |
+| 7 | high nibble charging flags (bits 1, 2 pods, bit 4 case); low nibble case battery |
+| 8 | lid: bit `0x08` clear means open; low 3 bits are an open/close counter |
+| 9 | colour |
+| 11-26 | encrypted payload, ignored in v1 |
+
+Offsets are into the manufacturer-data payload that follows the company ID.
 
 The flipped bit decides which nibble belongs to the left pod. The parser
 returns `null` for anything that is not a well-formed type `0x07` message
@@ -85,16 +89,19 @@ of sufficient length. Model IDs for both AirPods Pro 2 variants are
 recognised; other models are parsed but tagged so the matcher can reject
 them.
 
-**PodsSnapshot** (immutable record): `Model`, `LeftBattery`,
+**PodsSnapshot** (immutable record): `Model`, `Address` (the advertising
+address, stable for roughly 15 minutes between rotations), `LeftBattery`,
 `RightBattery`, `CaseBattery` (each `int?` in percent, `null` when
 unknown), `LeftCharging`, `RightCharging`, `CaseCharging`, `LeftInEar`,
-`RightInEar`, `BothInCase`, `LidOpen`, `Rssi`, `ReceivedAt`.
+`RightInEar`, `LidOpen`, `Rssi`, `ReceivedAt`.
 
 **DeviceMatcher.** Decides whether a snapshot belongs to the user's
-AirPods. Rule: the model must match the paired device, and among
-candidates seen in the last 3 s the snapshot must have the strongest RSSI.
-AirPods Pro 2 use resolvable private addresses, so address matching is
-impossible without the identity key. The identity key is out of scope for
+AirPods. Rule: the model must match the paired device. Candidates are
+tracked by advertising address with their latest RSSI; candidates unseen
+for 3 s expire; the snapshot is accepted when its address is the candidate
+with the strongest RSSI. AirPods Pro 2 use resolvable private addresses
+that rotate, so long-term address matching is impossible without the
+identity key; a rotation simply creates a new winning candidate. The identity key is out of scope for
 v1; a nearby stranger's AirPods Pro 2 with a stronger signal can be
 mis-picked and this limitation is documented in the README.
 
@@ -222,11 +229,11 @@ Logging uses `Microsoft.Extensions.Logging` with a rolling file provider.
 `tests/Hawa.Tests` (xUnit):
 
 - `ProximityParserTests`: byte fixtures for lid open, lid closed, one pod
-  in ear, both in case, charging, unknown battery, flipped bit set,
-  non-Apple and malformed payloads. Fixtures are recorded from the real
+  in ear, charging, unknown battery, flipped bit set, non-Apple and
+  malformed payloads. Fixtures are recorded from the real
   device during development and committed as hex strings.
-- `DeviceMatcherTests`: model mismatch rejected, strongest RSSI wins,
-  stale candidates expire.
+- `DeviceMatcherTests`: model mismatch rejected, strongest address wins,
+  stale candidates expire, address rotation hands over.
 - `DeviceStateStoreTests`: debounce, each transition fires exactly once,
   stale marking.
 - `AutoPauseCoordinatorTests`: pause only when connected and playing,
