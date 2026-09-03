@@ -1,0 +1,23 @@
+<UserControl x:Class="Hawa.App.Settings.Pages.BehaviourPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <StackPanel>
+        <TextBlock Text="Behaviour" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+        <ui:ToggleSwitch Content="Auto-pause when a pod is removed" IsChecked="{Binding AutoPauseEnabled}" Margin="0,0,0,8" />
+        <ui:ToggleSwitch Content="Only pause when both pods are removed" IsChecked="{Binding PauseOnlyWhenBothRemoved}" IsEnabled="{Binding AutoPauseEnabled}" Margin="24,0,0,16" />
+        <ui:ToggleSwitch Content="Show card when AirPods connect" IsChecked="{Binding PopupOnConnect}" Margin="0,0,0,8" />
+        <ui:ToggleSwitch Content="Show card when the case opens" IsChecked="{Binding PopupOnLidOpen}" Margin="0,0,0,8" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="Card stays for" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ui:NumberBox Value="{Binding PopupDurationSeconds, Mode=TwoWay}" Minimum="1" Maximum="60" Width="120" />
+            <TextBlock Text="seconds" VerticalAlignment="Center" Margin="8,0,0,0" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="Low battery below" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ui:NumberBox Value="{Binding LowBatteryThreshold, Mode=TwoWay}" Minimum="5" Maximum="50" Width="120" />
+            <TextBlock Text="%" VerticalAlignment="Center" Margin="8,0,0,0" />
+        </StackPanel>
+        <ui:ToggleSwitch Content="Start Hawa with Windows" IsChecked="{Binding StartWithWindows}" />
+    </StackPanel>
+</UserControl>

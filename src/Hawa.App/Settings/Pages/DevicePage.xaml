@@ -1,0 +1,34 @@
+<UserControl x:Class="Hawa.App.Settings.Pages.DevicePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <StackPanel>
+        <TextBlock Text="Device" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+        <ui:InfoBar Severity="Error" IsOpen="True" IsClosable="False" Margin="0,0,0,12"
+                    Title="No Bluetooth LE adapter" Message="Hawa needs a Bluetooth adapter that supports Low Energy."
+                    Visibility="{Binding BluetoothSupported, Converter={StaticResource InverseBoolToVisibility}}" />
+
+        <StackPanel Visibility="{Binding HasPairedDevices, Converter={StaticResource InverseBoolToVisibility}}" Margin="0,0,0,12">
+            <TextBlock TextWrapping="Wrap" Text="No AirPods are paired with Windows yet. Open the case, hold the button on the back until the light blinks white, then pair from Windows Settings." />
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <ui:Button Content="Open Bluetooth settings" Click="OpenBluetoothSettings_Click" Margin="0,0,8,0" />
+                <ui:Button Content="Refresh" Click="Refresh_Click" />
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Visibility="{Binding HasPairedDevices, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="Paired AirPods" Margin="0,0,0,4" />
+            <ComboBox ItemsSource="{Binding PairedDevices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="Name" Width="320" HorizontalAlignment="Left" />
+            <Grid Margin="0,20,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Name" Opacity="0.7" /><TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DeviceName}" />
+                <TextBlock Grid.Row="1" Text="Model" Opacity="0.7" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ModelName}" />
+                <TextBlock Grid.Row="2" Text="Connection" Opacity="0.7" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ConnectionState}" />
+                <TextBlock Grid.Row="3" Text="Last seen" Opacity="0.7" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LastSeen}" />
+            </Grid>
+            <ui:Button Content="Refresh" Click="Refresh_Click" Margin="0,16,0,0" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

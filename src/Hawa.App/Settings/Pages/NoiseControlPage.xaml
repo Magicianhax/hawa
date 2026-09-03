@@ -1,0 +1,17 @@
+<UserControl x:Class="Hawa.App.Settings.Pages.NoiseControlPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <StackPanel>
+        <TextBlock Text="Noise control" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+        <ui:InfoBar Severity="Informational" IsOpen="True" IsClosable="False" Margin="0,0,0,16"
+                    Title="Coming in v2" Message="{Binding NoiseControlNote}"
+                    Visibility="{Binding NoiseControlAvailable, Converter={StaticResource InverseBoolToVisibility}}" />
+        <UniformGrid Columns="4" IsEnabled="{Binding NoiseControlAvailable}">
+            <RadioButton Content="Off" GroupName="Noise" Margin="4" />
+            <RadioButton Content="Noise Cancellation" GroupName="Noise" Margin="4" />
+            <RadioButton Content="Transparency" GroupName="Noise" Margin="4" />
+            <RadioButton Content="Adaptive" GroupName="Noise" Margin="4" />
+        </UniformGrid>
+    </StackPanel>
+</UserControl>
