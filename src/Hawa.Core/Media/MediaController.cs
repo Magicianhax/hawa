@@ -1,5 +1,7 @@
 namespace Hawa.Core.Media;
 
+/// <remarks>Not thread-safe: callers must serialize access to <see cref="PauseIfPlayingAsync"/> and
+/// <see cref="ResumeIfWePausedAsync"/> (<see cref="AutoPauseCoordinator"/> does this).</remarks>
 public sealed class MediaController : IMediaController
 {
     private readonly IMediaSession _session;

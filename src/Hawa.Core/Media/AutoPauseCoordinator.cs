@@ -8,6 +8,7 @@ public sealed class AutoPauseCoordinator : IDisposable
     private readonly DeviceStateStore _store;
     private readonly IMediaController _media;
     private readonly TimeProvider _time;
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private DateTimeOffset? _pausedAt;
 
     public AutoPauseCoordinator(DeviceStateStore store, IMediaController media, TimeProvider time)
@@ -32,21 +33,30 @@ public sealed class AutoPauseCoordinator : IDisposable
     public async Task HandleAsync(Transition t)
     {
         if (!Enabled) return;
-        switch (t)
+        await _gate.WaitAsync();
+        try
         {
-            case PodRemoved:
-                if (!_store.IsConnected) return;
-                if (PauseOnlyWhenBothRemoved && _store.Snapshot is { } s && (s.LeftInEar || s.RightInEar)) return;
-                if (await _media.PauseIfPlayingAsync()) _pausedAt = _time.GetUtcNow();
-                break;
+            switch (t)
+            {
+                case PodRemoved:
+                    if (!_store.IsConnected) return;
+                    if (PauseOnlyWhenBothRemoved && _store.Snapshot is { } s && (s.LeftInEar || s.RightInEar)) return;
+                    if (await _media.PauseIfPlayingAsync()) _pausedAt = _time.GetUtcNow();
+                    break;
 
-            case PodInserted:
-                if (_pausedAt is not { } at) return;
-                _pausedAt = null;
-                if (_time.GetUtcNow() - at <= ResumeWindow) await _media.ResumeIfWePausedAsync();
-                break;
+                case PodInserted:
+                    if (_pausedAt is not { } at) return;
+                    _pausedAt = null;
+                    if (_time.GetUtcNow() - at <= ResumeWindow) await _media.ResumeIfWePausedAsync();
+                    break;
+            }
         }
+        finally { _gate.Release(); }
     }
 
-    public void Dispose() => _store.TransitionOccurred -= OnTransition;
+    public void Dispose()
+    {
+        _store.TransitionOccurred -= OnTransition;
+        _gate.Dispose();
+    }
 }
