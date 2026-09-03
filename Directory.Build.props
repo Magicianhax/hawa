@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <Product>Hawa</Product>
+    <Company>Hawa</Company>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+</Project>
