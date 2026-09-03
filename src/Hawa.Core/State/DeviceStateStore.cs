@@ -11,6 +11,7 @@ public sealed class DeviceStateStore : IDisposable
     private readonly ITimer _throttleTimer;
     private readonly ITimer _staleTimer;
     private DateTimeOffset _lastRaised = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastApplied = DateTimeOffset.MinValue;
     private bool _raisePending;
 
     public DeviceStateStore(TimeProvider time)
@@ -38,6 +39,7 @@ public sealed class DeviceStateStore : IDisposable
             var prev = Snapshot;
             Snapshot = next;
             IsStale = false;
+            _lastApplied = _time.GetUtcNow();
             _staleTimer.Change(StaleAfter, Timeout.InfiniteTimeSpan);
             transitions = Derive(prev, next);
         }
@@ -120,6 +122,7 @@ public sealed class DeviceStateStore : IDisposable
         lock (_gate)
         {
             if (IsStale) return;
+            if (Snapshot is null || _time.GetUtcNow() - _lastApplied < StaleAfter) return;
             IsStale = true;
             _lastRaised = _time.GetUtcNow();
         }
