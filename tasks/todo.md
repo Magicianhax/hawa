@@ -50,3 +50,32 @@ succeeded with 0 warnings/errors. The published folder is self-contained (includ
   operable from this environment; see `docs/manual-test.md` for exact steps.
 - The published Hawa instance was stopped after the smoke test; nothing was left
   running.
+
+## Final review fix wave
+
+One commit resolving the 8 Important findings and two promoted minors from
+`.superpowers/sdd/2026-09-03-hawa-v1/final-review.md`. Full write-up in
+`.superpowers/sdd/2026-09-03-hawa-v1/final-fix-report.md`.
+
+- **F1 hover vs click** — `PopupCard` tracks `_pinned`; hover uses the new `ShowOnHover()`
+  and is a no-op while the card is up, so a click no longer hides what hover just showed.
+  `ShowSettings` now subscribes `Closed` only in the branch that creates the window.
+- **F2 matcher hysteresis and address change** — `DeviceMatcher` keeps the current address
+  until it times out or a rival beats it by 8 dB; `DeviceStateStore.Derive` skips ear
+  transitions across an address change. Three tests cover the band, the take-over and the skip.
+- **F3 logging** — per-advert lines moved to Verbose behind `HAWA_TRACE=1`; the log file is
+  capped at 10 MB and rolls. Verified in both modes against the built exe.
+- **F4 media availability** — `IMediaSession.IsAvailableAsync()` is probed once at startup,
+  auto-pause is forced off when it fails, and the Behaviour page shows a warning InfoBar.
+- **F5 rolling peak** — `NAudioProbe` samples the cached endpoint every 100 ms into a
+  ten-slot ring and reports the maximum, so the audible check covers the last second.
+- **F6 radio state** — LE support now also requires the radio to be on, and `AppServices`
+  follows `Radio.StateChanged`, starting or stopping the watcher and raising
+  `BluetoothAvailabilityChanged` for the tray and the settings view model.
+- **F7 README** — the known limitation no longer claims Pro 2 targeting the matcher does not
+  enforce, and describes the sticky-address behaviour.
+- **F8 lid from case adverts** — the lid bit is read only when the case battery nibble is a
+  real value, so pods advertising outside the case no longer report "lid open". The real
+  captured header is pinned as a fixture and `docs/manual-test.md` is corrected.
+
+Build: 0 warnings, 0 errors. Tests: 55 passed, 0 failed (52 before, 3 added).

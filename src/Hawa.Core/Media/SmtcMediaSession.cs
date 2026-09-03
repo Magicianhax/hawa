@@ -13,6 +13,16 @@ public sealed class SmtcMediaSession : IMediaSession
         return _manager.GetCurrentSession();
     }
 
+    public async Task<bool> IsAvailableAsync()
+    {
+        try
+        {
+            _manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+            return _manager is not null;
+        }
+        catch { return false; }
+    }
+
     public async Task<bool> IsPlayingAsync()
     {
         var s = await CurrentAsync();

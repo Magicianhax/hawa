@@ -19,6 +19,7 @@ public partial class PopupCard : Window
     private readonly AppServices _services;
     private readonly DispatcherTimer _hideTimer = new();
     private bool _visible;
+    private bool _pinned;
 
     public PopupCard(AppServices services)
     {
@@ -58,14 +59,33 @@ public partial class PopupCard : Window
         BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
     }
 
+    /// <summary>Hover show. A no-op while the card is already up, so moving the mouse over the
+    /// tray icon never re-runs the slide animation and never steals the click's toggle state.</summary>
+    public void ShowOnHover()
+    {
+        if (_visible) return;
+        _pinned = false;
+        ShowFor(TimeSpan.FromSeconds(3));
+    }
+
+    /// <summary>Left-click toggle. Only a click-pinned card is hidden by a click; clicking a card
+    /// that hover put on screen pins it for the configured duration instead of dismissing it.</summary>
     public void Toggle()
     {
-        if (_visible) HideCard();
-        else ShowFor(TimeSpan.FromSeconds(_services.Settings.PopupDurationSeconds));
+        if (_visible && _pinned)
+        {
+            HideCard();
+        }
+        else
+        {
+            _pinned = true;
+            ShowFor(TimeSpan.FromSeconds(_services.Settings.PopupDurationSeconds));
+        }
     }
 
     public void HideCard()
     {
+        _pinned = false;
         if (!_visible) return;
         _visible = false;
         _hideTimer.Stop();

@@ -7,6 +7,7 @@ public class MediaControllerTests
     private sealed class FakeSession : IMediaSession
     {
         public bool Playing; public int Pauses; public int Plays;
+        public Task<bool> IsAvailableAsync() => Task.FromResult(true);
         public Task<bool> IsPlayingAsync() => Task.FromResult(Playing);
         public Task<bool> TryPauseAsync() { Pauses++; Playing = false; return Task.FromResult(true); }
         public Task<bool> TryPlayAsync() { Plays++; Playing = true; return Task.FromResult(true); }

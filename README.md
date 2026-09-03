@@ -21,8 +21,9 @@ kernel driver. The protocol layer is already in `src/Hawa.Aap`.
 
 ## Known limitation
 
-AirPods rotate their Bluetooth LE address, so Hawa picks the AirPods Pro 2 with the strongest
-signal. Someone else's AirPods Pro 2 very close to you can occasionally be shown instead.
+AirPods rotate their Bluetooth LE address, so Hawa picks the AirPods with the strongest signal
+(any model), and keeps following that address until a clearly stronger one appears. Someone
+else's AirPods very close to you can occasionally be shown instead.
 
 The in-ear and lid-open bit mappings are taken from community documentation and are being
 confirmed against real captures (see docs/manual-test.md).

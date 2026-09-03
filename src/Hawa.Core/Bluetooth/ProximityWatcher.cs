@@ -2,6 +2,7 @@ using Hawa.Core.Model;
 using Microsoft.Extensions.Logging;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
+using Windows.Devices.Radios;
 using Windows.Storage.Streams;
 
 namespace Hawa.Core.Bluetooth;
@@ -32,12 +33,18 @@ public sealed class ProximityWatcher : IDisposable
     public event Action<PodsSnapshot>? SnapshotReceived;
     public event Action<string>? Faulted;
 
+    /// <summary>True only when an LE-capable adapter exists <em>and</em> its radio is switched on.
+    /// The adapter still reports <c>IsLowEnergySupported</c> when the radio is off in Settings, so
+    /// without the radio check the watcher starts, aborts, and backs off instead of reporting that
+    /// Bluetooth is unavailable.</summary>
     public static async Task<bool> IsLowEnergySupportedAsync()
     {
         try
         {
             var adapter = await BluetoothAdapter.GetDefaultAsync();
-            return adapter is { IsLowEnergySupported: true };
+            if (adapter is not { IsLowEnergySupported: true }) return false;
+            var radio = await adapter.GetRadioAsync();
+            return radio?.State == RadioState.On;
         }
         catch { return false; }
     }
@@ -111,7 +118,7 @@ public sealed class ProximityWatcher : IDisposable
             reader.ReadBytes(data);
             if (data.Length == 0 || data[0] != ProximityParser.MessageType) continue;
 
-            _logger.LogDebug("advert {Address:X12} rssi {Rssi} data {Hex}", args.BluetoothAddress, args.RawSignalStrengthInDBm, Convert.ToHexString(data));
+            _logger.LogTrace("advert {Address:X12} rssi {Rssi} data {Hex}", args.BluetoothAddress, args.RawSignalStrengthInDBm, Convert.ToHexString(data));
 
             var snap = ProximityParser.Parse(data, args.BluetoothAddress, args.RawSignalStrengthInDBm, _time.GetUtcNow());
             if (snap is not null) SnapshotReceived?.Invoke(snap);

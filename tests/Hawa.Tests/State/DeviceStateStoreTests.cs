@@ -8,8 +8,8 @@ public class DeviceStateStoreTests
 {
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 9, 3, 12, 0, 0, TimeSpan.Zero));
 
-    private PodsSnapshot Snap(bool lidOpen = false, bool leftInEar = false, bool rightInEar = false, int? left = 80, int? right = 80) =>
-        new(AirPodsModel.AirPodsPro2, 1, left, right, 50, false, false, false, leftInEar, rightInEar, lidOpen, -50, _time.GetUtcNow());
+    private PodsSnapshot Snap(bool lidOpen = false, bool leftInEar = false, bool rightInEar = false, int? left = 80, int? right = 80, ulong address = 1) =>
+        new(AirPodsModel.AirPodsPro2, address, left, right, 50, false, false, false, leftInEar, rightInEar, lidOpen, -50, _time.GetUtcNow());
 
     private (DeviceStateStore store, List<Transition> transitions, Counter changes) Make()
     {
@@ -71,6 +71,21 @@ public class DeviceStateStoreTests
         store.Apply(Snap(leftInEar: false, rightInEar: true));
         store.Apply(Snap(leftInEar: true, rightInEar: true));
         Assert.Equal(new Transition[] { new PodRemoved(Side.Left), new PodInserted(Side.Left) }, t.ToArray());
+    }
+
+    [Fact]
+    public void Address_change_does_not_fire_ear_transitions()
+    {
+        var (store, t, _) = Make();
+        store.Apply(Snap(leftInEar: true, rightInEar: true));
+
+        // A different address is a different advertiser: its ear state is not a transition of ours.
+        store.Apply(Snap(address: 2, leftInEar: false, rightInEar: false));
+        Assert.Empty(t.OfType<PodRemoved>());
+
+        // Once the new address is established, its own changes do produce transitions.
+        store.Apply(Snap(address: 2, leftInEar: true, rightInEar: true));
+        Assert.Equal(2, t.OfType<PodInserted>().Count());
     }
 
     [Fact]

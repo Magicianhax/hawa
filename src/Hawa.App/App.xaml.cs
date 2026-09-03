@@ -49,9 +49,14 @@ public partial class App : Application
 
             var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Hawa", "logs");
             Directory.CreateDirectory(logDir);
-            var serilog = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.File(Path.Combine(logDir, "hawa-.log"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7)
+            // Per-advert lines are Verbose: several per second per Apple device in range, which
+            // is gigabytes in an office. HAWA_TRACE=1 opts in for a capture session; the file is
+            // capped at 10 MB and rolls so even a traced run cannot fill the disk.
+            bool trace = Environment.GetEnvironmentVariable("HAWA_TRACE") == "1";
+            var levels = new LoggerConfiguration();
+            var serilog = (trace ? levels.MinimumLevel.Verbose() : levels.MinimumLevel.Debug())
+                .WriteTo.File(Path.Combine(logDir, "hawa-.log"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7,
+                    fileSizeLimitBytes: 10_000_000, rollOnFileSizeLimit: true)
                 .CreateLogger();
             var loggers = LoggerFactory.Create(b => b.AddSerilog(serilog, dispose: true));
             _log = loggers.CreateLogger<App>();
@@ -61,7 +66,7 @@ public partial class App : Application
 
             _popup = new PopupCard(_services);
             _popupTrigger = new PopupTrigger(_services, _popup);
-            _tray = new TrayController(_services, ShowSettings, () => _popup.Toggle(), () => _popup.ShowFor(TimeSpan.FromSeconds(3)));
+            _tray = new TrayController(_services, ShowSettings, () => _popup.Toggle(), () => _popup.ShowOnHover());
             SecondInstanceSignal.Listen(() => Dispatcher.Invoke(ShowSettings));
 
             _log.LogInformation("Hawa started");
@@ -99,8 +104,13 @@ public partial class App : Application
 
     private void ShowSettings()
     {
-        _settings ??= new SettingsWindow(_services!);
-        _settings.Closed += (_, _) => _settings = null;
+        // Subscribe inside the branch that creates the window: re-subscribing on every call
+        // while the window is open would stack handlers on the one Closed event.
+        if (_settings is null)
+        {
+            _settings = new SettingsWindow(_services!);
+            _settings.Closed += (_, _) => _settings = null;
+        }
         _settings.Show();
         _settings.Activate();
     }

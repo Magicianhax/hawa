@@ -4,6 +4,12 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     <StackPanel>
         <TextBlock Text="Behaviour" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+        <ui:InfoBar Severity="Warning" IsOpen="True" IsClosable="False" Margin="0,0,0,12"
+                    Title="Media control unavailable"
+                    Message="Windows media controls could not be reached, so auto-pause is disabled."
+                    Visibility="{Binding MediaUnavailable, Converter={StaticResource BoolToVisibility}}" />
+
         <ui:ToggleSwitch Content="Auto-pause when a pod is removed" IsChecked="{Binding AutoPauseEnabled}" Margin="0,0,0,8" />
         <ui:ToggleSwitch Content="Only pause when both pods are removed" IsChecked="{Binding PauseOnlyWhenBothRemoved}" IsEnabled="{Binding AutoPauseEnabled}" Margin="24,0,0,16" />
         <ui:ToggleSwitch Content="Show card when AirPods connect" IsChecked="{Binding PopupOnConnect}" Margin="0,0,0,8" />

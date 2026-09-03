@@ -58,7 +58,24 @@ public class DeviceMatcherTests
     {
         var m = new DeviceMatcher(_time);
         Assert.True(m.Accept(Snap(1, -50)));
+
+        // 5 dB is inside the 8 dB hysteresis band, so the incumbent keeps winning.
+        Assert.False(m.Accept(Snap(2, -45)));
+        Assert.True(m.Accept(Snap(1, -50)));
+
+        // The old address stops advertising and falls out of the window; the new one takes over.
+        _time.Advance(TimeSpan.FromSeconds(4));
         Assert.True(m.Accept(Snap(2, -45)));
-        Assert.False(m.Accept(Snap(1, -50)));
+    }
+
+    [Fact]
+    public void Clearly_stronger_address_takes_over_immediately()
+    {
+        var m = new DeviceMatcher(_time);
+        Assert.True(m.Accept(Snap(1, -60)));
+
+        // 10 dB clears the hysteresis band, so no timeout is needed.
+        Assert.True(m.Accept(Snap(2, -50)));
+        Assert.False(m.Accept(Snap(1, -60)));
     }
 }

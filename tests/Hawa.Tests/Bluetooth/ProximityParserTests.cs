@@ -66,6 +66,16 @@ public class ProximityParserTests
     }
 
     [Fact]
+    public void Lid_bit_is_ignored_when_the_case_battery_is_unknown()
+    {
+        // Case nibble 0xF: a pod advertising outside the case, which carries no lid state, so the
+        // clear 0x08 bit must not be read as "lid open".
+        var s = Parse("07 19 01 24 20 0B 99 8F 11 00 00" + Enc)!;
+        Assert.Null(s.CaseBattery);
+        Assert.False(s.LidOpen);
+    }
+
+    [Fact]
     public void Unknown_battery_nibbles_become_null()
     {
         var s = Parse("07 19 01 14 20 20 FF 0F 08 00 00" + Enc)!;

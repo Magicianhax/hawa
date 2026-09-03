@@ -13,6 +13,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
     private readonly ILogger<SettingsViewModel> _log;
     private readonly Action _onStateChanged;
     private readonly Action<HawaSettings> _onSettingsChanged;
+    private readonly Action _onBluetoothAvailabilityChanged;
 
     public SettingsViewModel(AppServices services)
     {
@@ -20,14 +21,18 @@ public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
         _log = services.Loggers.CreateLogger<SettingsViewModel>();
         _onStateChanged = () => System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseDeviceInfo);
         _onSettingsChanged = _ => System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseAll);
+        _onBluetoothAvailabilityChanged = () => System.Windows.Application.Current.Dispatcher.BeginInvoke(
+            () => OnPropertyChanged(nameof(BluetoothSupported)));
         services.Store.StateChanged += _onStateChanged;
         services.SettingsChanged += _onSettingsChanged;
+        services.BluetoothAvailabilityChanged += _onBluetoothAvailabilityChanged;
     }
 
     public void Dispose()
     {
         _services.Store.StateChanged -= _onStateChanged;
         _services.SettingsChanged -= _onSettingsChanged;
+        _services.BluetoothAvailabilityChanged -= _onBluetoothAvailabilityChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -82,6 +87,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public bool BluetoothSupported => _services.BluetoothSupported;
+    public bool MediaUnavailable => !_services.MediaAvailable;
     public bool HasPairedDevices => PairedDevices.Count > 0;
     public string DeviceName => _services.Paired.DeviceName ?? "No AirPods paired";
     public string ModelName => _services.Store.Snapshot?.Model.DisplayName() ?? "Unknown";
