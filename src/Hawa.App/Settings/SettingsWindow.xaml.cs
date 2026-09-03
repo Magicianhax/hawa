@@ -13,6 +13,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         InitializeComponent();
         _vm = new SettingsViewModel(services);
         DataContext = _vm;
+        Closed += (_, _) => _vm.Dispose();
         _pages = new UserControl[] { new DevicePage(_vm), new NoiseControlPage(_vm), new BehaviourPage(_vm), new AboutPage(_vm) };
         PageHost.Content = _pages[0];
     }

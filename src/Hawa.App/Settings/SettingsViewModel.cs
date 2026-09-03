@@ -3,18 +3,31 @@ using System.Runtime.CompilerServices;
 using Hawa.Core.Bluetooth;
 using Hawa.Core.Model;
 using Hawa.Core.Settings;
+using Microsoft.Extensions.Logging;
 
 namespace Hawa.App.Settings;
 
-public sealed class SettingsViewModel : INotifyPropertyChanged
+public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly AppServices _services;
+    private readonly ILogger<SettingsViewModel> _log;
+    private readonly Action _onStateChanged;
+    private readonly Action<HawaSettings> _onSettingsChanged;
 
     public SettingsViewModel(AppServices services)
     {
         _services = services;
-        services.Store.StateChanged += () => System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseDeviceInfo);
-        services.SettingsChanged += _ => System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseAll);
+        _log = services.Loggers.CreateLogger<SettingsViewModel>();
+        _onStateChanged = () => System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseDeviceInfo);
+        _onSettingsChanged = _ => System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseAll);
+        services.Store.StateChanged += _onStateChanged;
+        services.SettingsChanged += _onSettingsChanged;
+    }
+
+    public void Dispose()
+    {
+        _services.Store.StateChanged -= _onStateChanged;
+        _services.SettingsChanged -= _onSettingsChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -47,7 +60,24 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         {
             if (value is null || value.Id == S.SelectedDeviceId) return;
             Apply(S with { SelectedDeviceId = value.Id });
-            _ = _services.Paired.BindAsync(value.Id);
+            BindSelectedAsync(value.Id);
+        }
+    }
+
+    private async void BindSelectedAsync(string id)
+    {
+        try
+        {
+            var bound = await _services.Paired.BindAsync(id);
+            if (!bound) _log.LogWarning("Failed to bind selected device {DeviceId}", id);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Failed to bind selected device {DeviceId}", id);
+        }
+        finally
+        {
+            _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(RaiseDeviceInfo);
         }
     }
 
