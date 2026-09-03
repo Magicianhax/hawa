@@ -64,19 +64,17 @@ public sealed class DeviceStateStore : IDisposable
     {
         var list = new List<Transition>();
 
-        // A different address is a different pair of AirPods, or the same pair after its
-        // resolvable private address rotated. Either way the previous ear state describes some
-        // other snapshot, so comparing against it would invent removals and insertions.
-        PodsSnapshot? sameDevice = prev is not null && prev.Address == next.Address ? prev : null;
-
         if (next.LidOpen && (prev is null || !prev.LidOpen)) list.Add(new LidOpened());
 
         foreach (var side in new[] { Side.Left, Side.Right })
         {
             // Ear transitions need a previous snapshot; the first snapshot only establishes state.
-            if (sameDevice is not null)
+            // The address is deliberately not compared: when the primary pod is removed the other
+            // pod takes over advertising under a new address, and that handover is the removal.
+            // DeviceMatcher already keeps foreign AirPods out via its sticky RSSI rule.
+            if (prev is not null)
             {
-                bool was = sameDevice.InEar(side);
+                bool was = prev.InEar(side);
                 bool now = next.InEar(side);
                 if (was && !now) list.Add(new PodRemoved(side));
                 if (!was && now) list.Add(new PodInserted(side));

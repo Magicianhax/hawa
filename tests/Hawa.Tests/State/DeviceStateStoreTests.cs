@@ -74,18 +74,15 @@ public class DeviceStateStoreTests
     }
 
     [Fact]
-    public void Address_change_does_not_fire_ear_transitions()
+    public void Primary_handover_to_new_address_still_fires_ear_transitions()
     {
+        // Real capture 2026-09-04: with both pods worn the primary pod advertises as address 1.
+        // Removing the primary makes the other pod take over under address 2, reporting that
+        // only it is still in an ear. That address change IS the removal and must not be ignored.
         var (store, t, _) = Make();
         store.Apply(Snap(leftInEar: true, rightInEar: true));
-
-        // A different address is a different advertiser: its ear state is not a transition of ours.
-        store.Apply(Snap(address: 2, leftInEar: false, rightInEar: false));
-        Assert.Empty(t.OfType<PodRemoved>());
-
-        // Once the new address is established, its own changes do produce transitions.
-        store.Apply(Snap(address: 2, leftInEar: true, rightInEar: true));
-        Assert.Equal(2, t.OfType<PodInserted>().Count());
+        store.Apply(Snap(address: 2, leftInEar: true, rightInEar: false));
+        Assert.Equal(new Transition[] { new PodRemoved(Side.Right) }, t.ToArray());
     }
 
     [Fact]
