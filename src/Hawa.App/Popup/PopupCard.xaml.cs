@@ -110,7 +110,7 @@ public partial class PopupCard : Window
         var sb = new System.Text.StringBuilder(256);
         GetWindowText(h, sb, sb.Capacity);
         var ours = new WindowInteropHelper(this).Handle;
-        Microsoft.Extensions.Logging.LoggerExtensions.LogInformation(_log, "focus {When}: foreground=0x{Handle:X} '{Title}' (popup=0x{Ours:X})", when, h.ToInt64(), sb.ToString(), ours.ToInt64());
+        Microsoft.Extensions.Logging.LoggerExtensions.LogDebug(_log, "focus {When}: foreground=0x{Handle:X} '{Title}' (popup=0x{Ours:X})", when, h.ToInt64(), sb.ToString(), ours.ToInt64());
     }
 
     private void Position()

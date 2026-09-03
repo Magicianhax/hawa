@@ -20,8 +20,8 @@ Run `dotnet run --project src/Hawa.App` with AirPods Pro 2 paired.
 | 14 | Disable Bluetooth in Windows, start Hawa | Grey icon with red slash, Device page shows the adapter warning | pending |
 | 15 | Start a second Hawa.exe | Settings window of the first instance comes to front | pending |
 | 16 | Close lid, walk out of range 30 s | Tooltip shows "not in range" | pending |
-| 17 | With `HAWA_TRACE=1` set, put the pods in the case and compare the `advert` log byte at offset 8 with the lid open vs. closed | `LidOpen` in the tooltip/card matches the byte 8 comparison for each lid state | pending |
-| 18 | With one pod in an ear | The log's status byte reflects the in-ear pod, and auto-pause fires when it is removed | pending |
+| 17 | With `HAWA_TRACE=1` set, put the pods in the case and compare the `advert` log byte at offset 8 with the lid open vs. closed | `LidOpen` in the tooltip/card matches the byte 8 comparison for each lid state | pass (2026-09-04: open `0x51`, closed `0x5A`) |
+| 18 | With one pod in an ear | The log's status byte reflects the in-ear pod, and auto-pause fires when it is removed | pass for the primary pod; the other pod's removal is reported late by the AirPods (see below) |
 
 The AirPods Pro 2 used for development are not paired to this PC over Bluetooth Classic
 (they were only observed advertising over BLE), so every row above is marked pending
@@ -66,27 +66,27 @@ Decoded by `ProximityParser` against the payload `07190124200B998F11...`:
 | 8 | `11` | Lid byte. Bit `0x08` is clear, but the case nibble at offset 7 is `0xF`, so this advert came from a pod outside the case and the parser reports `LidOpen = false`. The bit is therefore not evidence of the polarity either way |
 | 9 | `00` | Colour |
 
-### Open item: lid-bit polarity is unverified
+### Verified on hardware (2026-09-04, AirPods Pro 2 USB-C, firmware as shipped)
 
-190 adverts were captured across the session. Only the encrypted tail (bytes 11
-onward) varied; every one carried the identical plaintext header
-`07190124200B998F1100`, so byte 8 never moved off `0x11` and only one lid state
-was observed. Every one also carried case nibble `0xF`, the signature of a pod
-advertising outside the case, so none of them can say anything about a lid. The
-capture can neither confirm nor refute the polarity of bit `0x08`.
+Captured with `HAWA_TRACE=1`, one action at a time. Header bytes are offsets 5-8
+(status, batteries, charge|case, lid).
 
-The parser now reads the lid only from case-originated adverts: `LidOpen` is true
-when the case battery nibble is a real value (0-10) **and** bit `0x08` is clear.
-The polarity of that bit is still unverified, and the header above is pinned as a
-test fixture asserting `LidOpen = false` for it.
+| State | Header | Reading |
+| --- | --- | --- |
+| Both in case, lid open, unplugged | `55 88 B8 51` / `35 88 B8 51` | each pod advertises; charge bits 0x1, 0x2 (pods), case 80 %, lid bit clear = open |
+| Same, case plugged in | `55 89 F8 51` | charge nibble gains 0x4 = case charging |
+| Both in case, lid closed | `55 99 B8 5A` | lid bit 0x08 set = closed |
+| First pod inserted | `03 99 8F 13` | bit 0x2 = advertising (primary) pod in ear; case nibble F = pod-originated |
+| Both worn | `0B 99 8F 13` | bit 0x8 = other pod in ear |
+| Primary pod removed | `09`, or handover to the other pod's address with `23` | reported within ~2 s |
+| Other pod removed | `03` / `23` | reported 18 s to several minutes later, often only when the pod is touched again |
 
-To close this out, run Hawa with `HAWA_TRACE=1` and the AirPods case nearby, open
-the lid, note an advert line whose offset-7 low nibble is 0-10, close the lid, note
-another, and compare byte 8 between the two. If the parser reports
-`LidOpen = false` for the lid-open capture, invert the comparison to
-`(data[8] & 0x08) != 0`, flip the `lid` bytes in the two constants in
-`ProximityParserTests`, and re-run the tests.
+Conclusions: lid polarity, charging bits, battery nibbles and in-ear bits match the
+parser as written. The `0x20` status bit distinguishes which pod is advertising
+(the "flipped" rule swaps the left/right nibbles accordingly). Ear state for the
+non-advertising pod is unreliable over BLE, which is an AirPods firmware behaviour;
+AAP over the v2 driver is the fix. Holding a removed pod in your hand can make it
+report "in ear" again after a few seconds, so put it down during tests.
 
-Note also that `Paired AirPods: 0` was logged during this capture: the AirPods
-advertise over BLE but are not paired to this PC over Bluetooth Classic, so the
-tray sat in its "no AirPods paired" state. Pair them before re-testing.
+The popup never took focus: `focus` probe lines in the log showed the foreground
+window unchanged before, right after, and 700 ms after each show.

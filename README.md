@@ -25,8 +25,11 @@ AirPods rotate their Bluetooth LE address, so Hawa picks the AirPods with the st
 (any model), and keeps following that address until a clearly stronger one appears. Someone
 else's AirPods very close to you can occasionally be shown instead.
 
-The in-ear and lid-open bit mappings are taken from community documentation and are being
-confirmed against real captures (see docs/manual-test.md).
+Auto-pause reacts within a couple of seconds when you take out the pod that is currently
+"primary" (the one whose Bluetooth LE beacon is active, usually the first one you put in). The
+AirPods report the other pod's ear state lazily over that beacon, sometimes minutes late, so
+removing the non-primary pod may not pause. iOS avoids this with Apple's private protocol, which
+needs the v2 driver. Verified on AirPods Pro 2 (USB-C) on 2026-09-04; see docs/manual-test.md.
 
 ## Build
 
