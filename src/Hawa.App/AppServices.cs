@@ -121,8 +121,17 @@ public sealed class AppServices : IDisposable
         _log.LogInformation("Bluetooth radio state is now {State}; LE available: {Available}", state, available);
         try
         {
-            if (available) Watcher.Start();
-            else Watcher.Stop();
+            if (available)
+            {
+                Watcher.Start();
+                // A PC that booted with the radio off enumerated nothing at startup, so without
+                // this the tray stays on "no AirPods paired" for the rest of the session.
+                _ = RefreshPairedAsync();
+            }
+            else
+            {
+                Watcher.Stop();
+            }
         }
         catch (Exception ex)
         {
