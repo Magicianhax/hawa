@@ -15,6 +15,10 @@ public partial class PopupCard : Window
 
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
+
+    private readonly Microsoft.Extensions.Logging.ILogger _log;
 
     private readonly AppServices _services;
     private readonly DispatcherTimer _hideTimer = new();
@@ -25,6 +29,7 @@ public partial class PopupCard : Window
     {
         InitializeComponent();
         _services = services;
+        _log = Microsoft.Extensions.Logging.LoggerFactoryExtensions.CreateLogger<PopupCard>(services.Loggers);
         _hideTimer.Tick += (_, _) => HideCard();
         services.Store.StateChanged += () => Dispatcher.BeginInvoke(Refresh);
         MouseEnter += (_, _) =>
@@ -53,7 +58,12 @@ public partial class PopupCard : Window
         _hideTimer.Start();
         if (_visible) return;
         _visible = true;
+        LogForeground("before Show");
         Show();
+        LogForeground("after Show");
+        var probe = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        probe.Tick += (_, _) => { probe.Stop(); LogForeground("700 ms after Show"); };
+        probe.Start();
         var slide = new DoubleAnimation(Top + 16, Top, TimeSpan.FromMilliseconds(200)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
         BeginAnimation(TopProperty, slide);
         BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
@@ -92,6 +102,15 @@ public partial class PopupCard : Window
         var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
         fade.Completed += (_, _) => { if (!_visible) Hide(); };
         BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void LogForeground(string when)
+    {
+        var h = GetForegroundWindow();
+        var sb = new System.Text.StringBuilder(256);
+        GetWindowText(h, sb, sb.Capacity);
+        var ours = new WindowInteropHelper(this).Handle;
+        Microsoft.Extensions.Logging.LoggerExtensions.LogInformation(_log, "focus {When}: foreground=0x{Handle:X} '{Title}' (popup=0x{Ours:X})", when, h.ToInt64(), sb.ToString(), ours.ToInt64());
     }
 
     private void Position()

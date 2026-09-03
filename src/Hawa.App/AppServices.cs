@@ -32,9 +32,9 @@ public sealed class AppServices : IDisposable
         Watcher = new ProximityWatcher(loggers.CreateLogger<ProximityWatcher>(), Time);
         Paired = new PairedDeviceService();
         AudioProbe = new NAudioProbe();
-        _mediaSession = new SmtcMediaSession();
-        Media = new MediaController(_mediaSession, AudioProbe, () => Paired.DeviceName);
-        AutoPause = new AutoPauseCoordinator(Store, Media, Time)
+        _mediaSession = new SmtcMediaSession(loggers.CreateLogger<SmtcMediaSession>());
+        Media = new MediaController(_mediaSession, AudioProbe, () => Paired.DeviceName, loggers.CreateLogger<MediaController>());
+        AutoPause = new AutoPauseCoordinator(Store, Media, Time, loggers.CreateLogger<AutoPauseCoordinator>())
         {
             Enabled = Settings.AutoPauseEnabled,
             PauseOnlyWhenBothRemoved = Settings.PauseOnlyWhenBothRemoved,
@@ -43,7 +43,8 @@ public sealed class AppServices : IDisposable
 
         Watcher.SnapshotReceived += snap => { if (Matcher.Accept(snap)) Store.Apply(snap); };
         Watcher.Faulted += msg => WatcherFaulted?.Invoke(msg);
-        Paired.ConnectionChanged += connected => Store.SetConnected(connected);
+        Paired.ConnectionChanged += connected => { _log.LogInformation("AirPods classic link {State}", connected ? "connected" : "disconnected"); Store.SetConnected(connected); };
+        Store.TransitionOccurred += t => _log.LogDebug("transition {Transition} (addr {Address:X12})", t, Store.Snapshot?.Address ?? 0);
         AutoPause.Failed += ex => _log.LogError(ex, "Auto-pause failed");
     }
 

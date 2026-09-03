@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Windows.Media.Control;
 
 namespace Hawa.Core.Media;
@@ -6,6 +8,9 @@ namespace Hawa.Core.Media;
 public sealed class SmtcMediaSession : IMediaSession
 {
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
+    private readonly ILogger _log;
+
+    public SmtcMediaSession(ILogger<SmtcMediaSession>? logger = null) => _log = logger ?? NullLogger<SmtcMediaSession>.Instance;
 
     private async Task<GlobalSystemMediaTransportControlsSession?> CurrentAsync()
     {
@@ -26,6 +31,12 @@ public sealed class SmtcMediaSession : IMediaSession
     public async Task<bool> IsPlayingAsync()
     {
         var s = await CurrentAsync();
+        if (_manager is not null && _log.IsEnabled(LogLevel.Debug))
+        {
+            foreach (var session in _manager.GetSessions())
+                _log.LogDebug("smtc session {App}: {Status}{Current}", session.SourceAppUserModelId, session.GetPlaybackInfo().PlaybackStatus,
+                    session.SourceAppUserModelId == s?.SourceAppUserModelId ? " (current)" : "");
+        }
         return s?.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
     }
 
