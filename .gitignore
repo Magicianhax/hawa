@@ -7,3 +7,15 @@ obj/
 publish/
 TestResults/
 *.bad
+
+# secrets / local state (added 2026-09-15)
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.bak
+*-keys.txt
+*wallet*.txt
+node_modules/
+__pycache__/
+.venv/
